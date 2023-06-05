@@ -3,34 +3,35 @@ import XCTest
 
 final class ChangeNotificationsTreeUpdateTests: XCTestCase {
     func testOneFileDirectoryTreeSubdirectoryRemoved() throws {
-        let invocation = XCTestExpectation(description: "Callback was invoked.")
-        let invocationCount = XCTestExpectation(description: "Callback was invoked twice.")
-        invocationCount.expectedFulfillmentCount = 2
-        invocationCount.assertForOverFulfill = true
+        let firstInvocation = expectation(description: "First callback invocation.")
+        let secondInvocation = expectation(description: "Second callback invocation.")
+        let thirdInvocation = expectation(description: "Third callback invocation.")
+        let invocations = Expectations(firstInvocation, secondInvocation, thirdInvocation)
 
         let tmpdir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("mdnotifyTest-\(UUID())")
         try FileManager.default.createDirectory(at: tmpdir, withIntermediateDirectories: false)
         defer {try! FileManager.default.removeItem(at: tmpdir) }
 
-        let subdir = tmpdir.appendingPathComponent("testdir")
-        try FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: false)
-        try "hello world".write(to: subdir.appendingPathComponent("test.txt"), atomically: false, encoding: .utf8)
-
         let notifications = ChangeNotifications(for: tmpdir.path)
         let observation = notifications.observe(using: {
-            invocation.fulfill()
-            invocationCount.fulfill()
+            Task { await invocations.removeFirst().fulfill() }
         })
         defer { observation.remove() }
 
         notifications.start()
         defer { notifications.stop() }
 
-        wait(for: [invocation], timeout: 5.0)
+        wait(for: [firstInvocation], timeout: 5.0)
+
+        let subdir = tmpdir.appendingPathComponent("testdir")
+        try FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: false)
+        try "hello world".write(to: subdir.appendingPathComponent("test.txt"), atomically: false, encoding: .utf8)
+
+        wait(for: [secondInvocation], timeout: 5.0)
 
         try FileManager.default.removeItem(at: subdir)
 
-        wait(for: [invocationCount], timeout: 5.0)
+        wait(for: [thirdInvocation], timeout: 5.0)
     }
 
     func testEmptyDirectoryTreeOneSubdirectoryAdded() throws {
