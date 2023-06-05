@@ -16,3 +16,7 @@ dist: build
 	mkdir -p dist
 	tar --uid 0 --gid 0 --numeric-owner -czf dist/mdnotify-${VERSION}.tar.gz -C build mdnotify-${VERSION}
 	(cd dist && shasum -a 256 mdnotify-* > sha256sums.txt)
+
+.PHONY: test
+test:
+	swift test --parallel
